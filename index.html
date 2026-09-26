@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#175aeb">
+  <meta name="description" content="数字25個のA4シートを作成してPDFで保存。">
+  <title>数字シート</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./vendor/jspdf.umd.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header><span class="brand-icon" aria-hidden="true">25</span><h1>数字シート</h1><span class="format">A4 / 5 × 5</span></header>
+  <main>
+    <section class="settings" aria-labelledby="settings-title">
+      <h2 id="settings-title">シートをつくる</h2>
+      <p class="intro">0〜9の数字をランダムに25個。</p>
+      <form id="settings-form">
+        <div class="field"><label for="font-size">文字サイズ</label><div class="input-unit"><input id="font-size" type="number" min="24" max="124" step="1" value="104" required inputmode="numeric"><span>pt</span></div></div>
+        <div class="field"><label for="grid-size">グリッドの一辺</label><div class="input-unit"><input id="grid-size" type="number" min="100" max="190" step="1" value="190" required inputmode="numeric"><span>mm</span></div><small>縦横は同じ長さ。100〜190mm</small></div>
+        <div class="field"><label for="page-count">枚数</label><div class="input-unit"><input id="page-count" type="number" min="1" max="100" step="1" value="1" required inputmode="numeric"><span>枚</span></div><small>1〜100枚。ページごとに異なる並び</small></div>
+        <label class="checkbox"><input id="grid-lines" type="checkbox" checked><span>グリッド線を表示する</span></label>
+        <p id="form-error" class="error" role="alert"></p>
+        <button class="primary" type="submit">生成</button>
+      </form>
+      <p class="hint">生成するたびに数字の並びが変わります。<br>同じ数字が複数回出ることがあります。</p>
+    </section>
+    <section class="result" aria-label="生成したシート">
+      <div class="result-bar"><h2>プレビュー</h2><span id="summary">未生成</span></div>
+      <div class="paper" id="preview"><div class="empty"><span aria-hidden="true">0 1 2<br>3 4 5</span><p>設定を選んで「生成」を押してください</p></div></div>
+      <nav class="pagination" aria-label="ページ切り替え" hidden><button type="button" id="previous" aria-label="前のページ">←</button><span id="page-label"></span><button type="button" id="next" aria-label="次のページ">→</button></nav>
+      <div class="download-bar"><p id="status" role="status" aria-live="polite">生成するとPDFを保存できます。</p><button type="button" id="download" class="primary" disabled>PDFダウンロード</button></div>
+      <p class="print-note">印刷は「A4・縦・実際のサイズ（100%）」で。</p>
+    </section>
+  </main>
+  <footer>数字シート <span>作成した数字は外部に送信しません。</span></footer>
+</body>
+</html>
