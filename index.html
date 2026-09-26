@@ -20,10 +20,10 @@
       <h2 id="settings-title">シートをつくる</h2>
       <p class="intro">0〜9の数字をランダムに25個。</p>
       <form id="settings-form">
-        <div class="field"><label for="font-size">文字サイズ</label><div class="input-unit"><input id="font-size" type="number" min="24" max="124" step="1" value="104" required inputmode="numeric"><span>pt</span></div></div>
-        <div class="field"><label for="grid-size">グリッドの一辺</label><div class="input-unit"><input id="grid-size" type="number" min="100" max="190" step="1" value="190" required inputmode="numeric"><span>mm</span></div><small>縦横は同じ長さ。100〜190mm</small></div>
+        <div class="field"><label for="font-size">文字サイズ</label><div class="input-unit"><input id="font-size" type="number" min="24" max="124" step="1" value="100" required inputmode="numeric"><span>pt</span></div></div>
+        <div class="field"><label for="grid-size">グリッドの一辺</label><div class="input-unit"><input id="grid-size" type="number" min="100" max="190" step="1" value="180" required inputmode="numeric"><span>mm</span></div><small>縦横は同じ長さ。100〜190mm</small></div>
         <div class="field"><label for="page-count">枚数</label><div class="input-unit"><input id="page-count" type="number" min="1" max="100" step="1" value="1" required inputmode="numeric"><span>枚</span></div><small>1〜100枚。ページごとに異なる並び</small></div>
-        <label class="checkbox"><input id="grid-lines" type="checkbox" checked><span>グリッド線を表示する</span></label>
+        <label class="checkbox"><input id="grid-lines" type="checkbox"><span>グリッド線を表示する</span></label>
         <p id="form-error" class="error" role="alert"></p>
         <button class="primary" type="submit">生成</button>
       </form>
