@@ -1,11 +1,18 @@
+import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 export const PT_TO_MM = 25.4 / 72;
+
+export async function loadPreviewFont() {
+  const font = new FontFace('Sheet Digits UD', `url(data:font/ttf;base64,${FONT_DATA})`, { weight: '700' });
+  await font.load();
+  document.fonts.add(font);
+}
 
 export function validate(settings) {
   const { fontSize, gridSize, pages } = settings;
   if (!Number.isInteger(fontSize) || fontSize < 24 || fontSize > 124) throw new Error('文字サイズは24〜124ptで指定してください。');
   if (!Number.isInteger(gridSize) || gridSize < 100 || gridSize > 190) throw new Error('グリッドの一辺は100〜190mmで指定してください。');
   if (!Number.isInteger(pages) || pages < 1 || pages > 100) throw new Error('枚数は1〜100枚で指定してください。');
-  const maxFont = Math.floor((gridSize / 5 - 4) / (0.74 * PT_TO_MM));
+  const maxFont = Math.floor((gridSize / 5 - 4) / (FONT_EXTENT * PT_TO_MM));
   if (fontSize > maxFont) throw new Error(`このグリッドでは文字サイズを${maxFont}pt以下にしてください。`);
 }
 
@@ -38,14 +45,16 @@ export function previewSvg(settings, digits) {
   }
   digits.forEach((digit, i) => {
     const x = left + (i % 5 + .5) * cell;
-    const y = top + (Math.floor(i / 5) + .5) * cell + sizeMm * .718 / 2;
-    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="${sizeMm}" fill="black">${digit}</text>`;
+    const y = top + (Math.floor(i / 5) + .5) * cell + sizeMm * FONT_CENTER;
+    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Sheet Digits UD" font-weight="700" font-size="${sizeMm}" fill="black">${digit}</text>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="数字25個のA4シート">${content}</svg>`;
 }
 
 export function makePdf(jsPDF, settings, sheets) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+  doc.addFileToVFS('SheetDigitsUD-Bold.ttf', FONT_DATA);
+  doc.addFont('SheetDigitsUD-Bold.ttf', 'Sheet Digits UD', 'bold');
   const { left, top, cell, sizeMm } = layout(settings);
   doc.setProperties({ title: 'Random digits - A4 square 5x5 grid' });
   sheets.forEach((digits, page) => {
@@ -57,9 +66,9 @@ export function makePdf(jsPDF, settings, sheets) {
         doc.line(left, top + i * cell, left + settings.gridSize, top + i * cell);
       }
     }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(settings.fontSize); doc.setTextColor(0);
+    doc.setFont('Sheet Digits UD', 'bold'); doc.setFontSize(settings.fontSize); doc.setTextColor(0);
     digits.forEach((digit, i) => {
-      doc.text(String(digit), left + (i % 5 + .5) * cell, top + (Math.floor(i / 5) + .5) * cell + sizeMm * .718 / 2, { align: 'center' });
+      doc.text(String(digit), left + (i % 5 + .5) * cell, top + (Math.floor(i / 5) + .5) * cell + sizeMm * FONT_CENTER, { align: 'center' });
     });
   });
   return doc;

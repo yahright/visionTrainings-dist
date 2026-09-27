@@ -1,6 +1,7 @@
-import { validate, createSheets, previewSvg, makePdf } from './core.js';
+import { validate, createSheets, previewSvg, makePdf, loadPreviewFont } from './core.js';
 const $ = id => document.getElementById(id);
 let generated = null, page = 0;
+const fontReady = loadPreviewFont().then(() => true, () => false);
 function readSettings() {
   return { fontSize: Number($('font-size').value), gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
 }
@@ -12,10 +13,11 @@ function render() {
   $('previous').disabled = page === 0;
   $('next').disabled = page === generated.sheets.length - 1;
 }
-$('settings-form').addEventListener('submit', event => {
+$('settings-form').addEventListener('submit', async event => {
   event.preventDefault();
   try {
     const settings = readSettings(); validate(settings);
+    if (!await fontReady) throw new Error('数字フォントを読み込めませんでした。画面を再読み込みしてください。');
     generated = { settings, sheets: createSheets(settings.pages) }; page = 0;
     render(); $('form-error').textContent = ''; $('download').disabled = false;
     $('status').textContent = `${settings.pages}枚を生成しました。この並びで保存できます。`;

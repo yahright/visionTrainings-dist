@@ -1,5 +1,5 @@
-const CACHE = 'digits-sheet-20260927053953';
-const FILES = ['./', './index.html', './style.css', './app.js', './core.js', './vendor/jspdf.umd.min.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
+const CACHE = 'digits-sheet-20260927102448';
+const FILES = ['./', './index.html', './style.css', './app.js', './core.js', './fonts/digits-font.js', './fonts/OFL.txt', './vendor/jspdf.umd.min.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('digits-sheet-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
