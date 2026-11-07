@@ -1,5 +1,6 @@
 import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 import { ANIMALS, animalUrl } from './animals.js';
+import { SHAPES, SHAPE_ROWS, SHAPE_COLS, shapePreviewSvg, makeShapePdf } from './shapes.js';
 export const PT_TO_MM = 25.4 / 72;
 
 export async function loadPreviewFont() {
@@ -10,9 +11,15 @@ export async function loadPreviewFont() {
 
 export function validate(settings) {
   const { fontSize, gridSize, pages, mode = 'digits' } = settings;
-  if (!['digits', 'animals'].includes(mode)) throw new Error('数字または動物を選んでください。');
-  if (!Number.isInteger(gridSize) || gridSize < 100 || gridSize > 190) throw new Error('グリッドの一辺は100〜190mmで指定してください。');
+  if (!['digits', 'animals', 'shapes'].includes(mode)) throw new Error('数字・動物・図形のどれかを選んでください。');
   if (!Number.isInteger(pages) || pages < 1 || pages > 100) throw new Error('枚数は1〜100枚で指定してください。');
+  if (mode === 'shapes') {
+    if (!Array.isArray(settings.shapes) || settings.shapes.length < 2 || settings.shapes.length > SHAPES.length || new Set(settings.shapes).size !== settings.shapes.length || settings.shapes.some(id => !SHAPES.some(shape => shape.id === id))) throw new Error('図形を2種類以上選んでください。');
+    if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > 23) throw new Error('図形の大きさは12〜23mmで指定してください。');
+    if (typeof settings.title !== 'string' || settings.title.length > 40 || !/^[\x20-\x7e]*$/.test(settings.title)) throw new Error('タイトルは半角英数字40文字以内で入力してください。');
+    return;
+  }
+  if (!Number.isInteger(gridSize) || gridSize < 100 || gridSize > 190) throw new Error('グリッドの一辺は100〜190mmで指定してください。');
   if (mode === 'animals') {
     if (![3, 4, 5].includes(settings.animalCount)) throw new Error('動物は3・4・5種類から選んでください。');
     if (!Array.isArray(settings.animals) || new Set(settings.animals).size !== settings.animalCount || settings.animals.length !== settings.animalCount || settings.animals.some(id => !ANIMALS.some(animal => animal.id === id))) throw new Error(`動物を${settings.animalCount}種類選んでください。`);
@@ -22,6 +29,23 @@ export function validate(settings) {
     const maxFont = Math.floor((gridSize / 5 - 4) / (FONT_EXTENT * PT_TO_MM));
     if (fontSize > maxFont) throw new Error(`このグリッドでは文字サイズを${maxFont}pt以下にしてください。`);
   }
+}
+
+function shuffle(items) {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+// Each chosen shape appears as evenly as possible across the 50 cells;
+// the key below the rule shows every chosen shape once in a random order.
+function createShapeSheet(shapes) {
+  const total = SHAPE_ROWS * SHAPE_COLS, base = Math.floor(total / shapes.length);
+  const extra = shuffle([...shapes]).slice(0, total - base * shapes.length);
+  const cells = shapes.flatMap(id => Array(base + (extra.includes(id) ? 1 : 0)).fill(id));
+  return { cells: shuffle(cells), order: shuffle([...shapes]) };
 }
 
 function randomIndex(length) {
@@ -34,17 +58,19 @@ function randomIndex(length) {
 export function createSheets(count, settings = {}) {
   if (!Number.isInteger(count) || count < 1 || count > 100) throw new Error('枚数は1〜100枚で指定してください。');
   const isAnimals = settings.mode === 'animals';
-  if (isAnimals) validate({ ...settings, pages: count });
+  if (isAnimals || settings.mode === 'shapes') validate({ ...settings, pages: count });
   const sheets = [], seen = new Set();
   while (sheets.length < count) {
+    if (settings.mode === 'shapes') {
+      const sheet = createShapeSheet(settings.shapes), key = JSON.stringify(sheet);
+      if (!seen.has(key)) { seen.add(key); sheets.push(sheet); }
+      continue;
+    }
     // Ensure every chosen animal occurs at least once, then randomize positions.
     const pool = isAnimals ? settings.animals : Array.from({ length: 10 }, (_, i) => i);
     const items = isAnimals ? [...pool] : [];
     while (items.length < 25) items.push(pool[randomIndex(pool.length)]);
-    if (isAnimals) for (let i = items.length - 1; i > 0; i--) {
-      const j = randomIndex(i + 1);
-      [items[i], items[j]] = [items[j], items[i]];
-    }
+    if (isAnimals) shuffle(items);
     const key = items.join(',');
     if (!seen.has(key)) { seen.add(key); sheets.push(items); }
   }
@@ -56,6 +82,7 @@ export function layout(settings) {
 }
 
 export function previewSvg(settings, digits) {
+  if (settings.mode === 'shapes') return shapePreviewSvg(settings, digits);
   const { left, top, cell, sizeMm } = layout(settings);
   let content = '<rect width="210" height="297" fill="white"/>';
   if (settings.lines) for (let i = 0; i <= 5; i++) {
@@ -78,6 +105,7 @@ export function previewSvg(settings, digits) {
 }
 
 export function makePdf(jsPDF, settings, sheets, animalImages = {}) {
+  if (settings.mode === 'shapes') return makeShapePdf(jsPDF, settings, sheets);
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
   const isAnimals = settings.mode === 'animals';
   if (!isAnimals) {
