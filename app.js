@@ -51,7 +51,7 @@ $('animal-choices').addEventListener('change', showSelection);
 syncMode();
 function readSettings() {
   const dimensions = { rows: Number($('grid-rows').value), cols: Number($('grid-cols').value) };
-  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
+  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), shapeStroke: Number($('shape-stroke').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
   const common = { ...dimensions, mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
   return common.mode === 'animals'
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
@@ -63,7 +63,7 @@ function render() {
   const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
   $('preview').classList.toggle('landscape', settings.mode === 'shapes');
   const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
-  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm${colorLabel}`;
+  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm${colorLabel}`;
   else {
   const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
   $('summary').textContent = `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;

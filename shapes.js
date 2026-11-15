@@ -12,7 +12,8 @@ export const SHAPES = [
 export const SHAPE_ROWS = 5, SHAPE_COLS = 10;
 const PAGE_W = 297, PAGE_H = 210, PITCH_X = 27, PITCH_Y = 27, FIRST_ROW = 32;
 const TITLE_Y = 15, RULE_Y = 168, RULE_GAP = 2, RULE_LEFT = 19, KEY_Y = 185, KEY_PITCH = 29;
-export const SHAPE_STROKE = 0.3;
+export const SHAPE_STROKE = 0.3, SHAPE_STROKE_MIN = 0.2, SHAPE_STROKE_MAX = 1;
+export const shapeStroke = (settings = {}) => settings.shapeStroke ?? SHAPE_STROKE;
 
 // Outline of a shape whose nominal size is `size` mm, centered at (cx, cy).
 // Circles are { circle: r }; everything else is a closed polygon.
@@ -69,12 +70,12 @@ export function shapePreviewSvg(settings, sheet) {
   let content = `<rect width="${L.PAGE_W}" height="${L.PAGE_H}" fill="white"/>`;
   if (settings.title) content += `<text x="${L.PAGE_W / 2}" y="${L.TITLE_Y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${12 * 25.4 / 72}" fill="black">${escapeXml(settings.title)}</text>`;
   sheet.cells.forEach((id, i) => {
-    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), SHAPE_STROKE, rowColor(settings.rowColor, Math.floor(i / L.cols)))}</g>`;
+    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), shapeStroke(settings), rowColor(settings.rowColor, Math.floor(i / L.cols)))}</g>`;
   });
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
   sheet.order.forEach((id, i) => {
-    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize), SHAPE_STROKE)}</g>`;
+    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize), shapeStroke(settings))}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.PAGE_W} ${L.PAGE_H}" role="img" aria-label="図形タッチ${L.rows}行×${L.cols}列のA4横シート">${content}</svg>`;
 }
@@ -93,7 +94,7 @@ export function makeShapePdf(jsPDF, settings, sheets) {
   doc.setProperties({ title: `${settings.title || 'shape touch'} - A4 landscape ${L.rows}x${L.cols}` });
   sheets.forEach((sheet, page) => {
     if (page) doc.addPage('a4', 'landscape');
-    doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE); doc.setLineJoin('miter');
+    doc.setDrawColor(0); doc.setLineWidth(shapeStroke(settings)); doc.setLineJoin('miter');
     if (settings.title) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(0);
       doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
@@ -102,9 +103,10 @@ export function makeShapePdf(jsPDF, settings, sheets) {
       doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols))));
       drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
     });
-    doc.setDrawColor(0);
+    doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE);
     for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
     const keyLeft = L.keyLeft(sheet.order.length);
+    doc.setLineWidth(shapeStroke(settings));
     sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize)));
   });
   return doc;
