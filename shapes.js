@@ -1,5 +1,6 @@
 // "shape touch" worksheet: outline shapes in a 5 x 10 grid on A4 landscape,
 // with the touch order shown below a double rule.
+import { rowColor, hexToRgb } from './rows.js';
 export const SHAPES = [
   { id: 'triangle', label: '三角' },
   { id: 'circle', label: '丸' },
@@ -50,8 +51,8 @@ export function shapeIcon(id) {
   return `<svg viewBox="0 0 30 30" width="54" height="54" aria-hidden="true">${outlineSvg(shapeOutline(id, 15, 15, 22), 1.2)}</svg>`;
 }
 
-function outlineSvg(outline, stroke) {
-  const style = `fill="none" stroke="black" stroke-width="${stroke}" stroke-linejoin="miter"`;
+function outlineSvg(outline, stroke, color = 'black') {
+  const style = `fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linejoin="miter"`;
   if (outline.circle) return `<circle cx="${outline.cx}" cy="${outline.cy}" r="${outline.circle}" ${style}/>`;
   return `<polygon points="${outline.points.map(p => p.map(v => +v.toFixed(3)).join(',')).join(' ')}" ${style}/>`;
 }
@@ -65,7 +66,7 @@ export function shapePreviewSvg(settings, sheet) {
   let content = `<rect width="${L.PAGE_W}" height="${L.PAGE_H}" fill="white"/>`;
   if (settings.title) content += `<text x="${L.PAGE_W / 2}" y="${L.TITLE_Y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${12 * 25.4 / 72}" fill="black">${escapeXml(settings.title)}</text>`;
   sheet.cells.forEach((id, i) => {
-    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), SHAPE_STROKE)}</g>`;
+    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), SHAPE_STROKE, rowColor(settings.rowColor, Math.floor(i / SHAPE_COLS)))}</g>`;
   });
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
@@ -94,7 +95,11 @@ export function makeShapePdf(jsPDF, settings, sheets) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(0);
       doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
     }
-    sheet.cells.forEach((id, i) => drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize)));
+    sheet.cells.forEach((id, i) => {
+      doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / SHAPE_COLS))));
+      drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
+    });
+    doc.setDrawColor(0);
     for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
     const keyLeft = L.keyLeft(sheet.order.length);
     sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize)));

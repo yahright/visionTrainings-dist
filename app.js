@@ -20,6 +20,8 @@ function syncMode() {
   $('font-field').hidden = mode !== 'digits';
   $('font-size').disabled = mode !== 'digits';
   for (const id of ['grid-field', 'lines-field']) $(id).hidden = shapes;
+  $('row-color-field').hidden = $('row-color').disabled = animals;
+  $('row-lines-field').hidden = $('row-lines').disabled = mode !== 'digits';
   $('grid-size').disabled = $('grid-lines').disabled = shapes;
   $('print-note').textContent = `印刷は「A4・${shapes ? '横' : '縦'}・実際のサイズ（100%）」で。`;
   showSelection(); showShapeSelection();
@@ -35,19 +37,20 @@ $('animal-count').addEventListener('change', () => {
 $('animal-choices').addEventListener('change', showSelection);
 syncMode();
 function readSettings() {
-  if ($('sheet-mode').value === 'shapes') return { mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), title: $('shape-title').value.trim() };
+  if ($('sheet-mode').value === 'shapes') return { mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
   const common = { mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
   return common.mode === 'animals'
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
-    : { ...common, fontSize: Number($('font-size').value) };
+    : { ...common, fontSize: Number($('font-size').value), rowColor: $('row-color').value, rowLines: $('row-lines').checked };
 }
 function render() {
   $('preview').innerHTML = previewSvg(generated.settings, generated.sheets[page]);
   const settings = generated.settings;
   $('preview').classList.toggle('landscape', settings.mode === 'shapes');
-  if (settings.mode === 'shapes') $('summary').textContent = `図形${settings.shapes.length}種類・${settings.shapeSize}mm / 5×10`;
+  const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
+  if (settings.mode === 'shapes') $('summary').textContent = `図形${settings.shapes.length}種類・${settings.shapeSize}mm / 5×10${colorLabel}`;
   else {
-  const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt`;
+  const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
   $('summary').textContent = `${settings.gridSize}mm角 / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
   }
   document.querySelector('.pagination').hidden = generated.sheets.length === 1;

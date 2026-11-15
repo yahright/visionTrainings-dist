@@ -1,6 +1,8 @@
 import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 import { ANIMALS, animalUrl } from './animals.js';
 import { SHAPES, SHAPE_ROWS, SHAPE_COLS, shapePreviewSvg, makeShapePdf } from './shapes.js';
+import { rowColor, hexToRgb, validateRowColor } from './rows.js';
+export const ROW_LINE_COLOR = '#555555', ROW_LINE_PT = 1;
 export const PT_TO_MM = 25.4 / 72;
 
 export async function loadPreviewFont() {
@@ -13,6 +15,7 @@ export function validate(settings) {
   const { fontSize, gridSize, pages, mode = 'digits' } = settings;
   if (!['digits', 'animals', 'shapes'].includes(mode)) throw new Error('数字・動物・図形のどれかを選んでください。');
   if (!Number.isInteger(pages) || pages < 1 || pages > 100) throw new Error('枚数は1〜100枚で指定してください。');
+  validateRowColor(settings.rowColor);
   if (mode === 'shapes') {
     if (!Array.isArray(settings.shapes) || settings.shapes.length < 2 || settings.shapes.length > SHAPES.length || new Set(settings.shapes).size !== settings.shapes.length || settings.shapes.some(id => !SHAPES.some(shape => shape.id === id))) throw new Error('図形を2種類以上選んでください。');
     if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > 23) throw new Error('図形の大きさは12〜23mmで指定してください。');
@@ -88,6 +91,9 @@ export function previewSvg(settings, digits) {
   if (settings.lines) for (let i = 0; i <= 5; i++) {
     content += `<path d="M ${left+i*cell} ${top} v ${settings.gridSize} M ${left} ${top+i*cell} h ${settings.gridSize}" fill="none" stroke="#a6a6a6" stroke-width="${0.5*PT_TO_MM}"/>`;
   }
+  if (settings.mode === 'digits' && settings.rowLines) for (let i = 1; i < 5; i++) {
+    content += `<path data-row-line d="M ${left} ${top+i*cell} h ${settings.gridSize}" fill="none" stroke="${ROW_LINE_COLOR}" stroke-width="${ROW_LINE_PT*PT_TO_MM}"/>`;
+  }
   digits.forEach((digit, i) => {
     if (settings.mode === 'animals') {
       const side = cell * settings.animalSize / 100;
@@ -99,7 +105,7 @@ export function previewSvg(settings, digits) {
     }
     const x = left + (i % 5 + .5) * cell;
     const y = top + (Math.floor(i / 5) + .5) * cell + sizeMm * FONT_CENTER;
-    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Sheet Digits UD" font-weight="700" font-size="${sizeMm}" fill="black">${digit}</text>`;
+    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Sheet Digits UD" font-weight="700" font-size="${sizeMm}" fill="${rowColor(settings.rowColor, Math.floor(i / 5))}">${digit}</text>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="${settings.mode === 'animals' ? '動物' : '数字'}25個のA4シート">${content}</svg>`;
 }
@@ -123,7 +129,11 @@ export function makePdf(jsPDF, settings, sheets, animalImages = {}) {
         doc.line(left, top + i * cell, left + settings.gridSize, top + i * cell);
       }
     }
-    if (!isAnimals) { doc.setFont('Sheet Digits UD', 'bold'); doc.setFontSize(settings.fontSize); doc.setTextColor(0); }
+    if (!isAnimals && settings.rowLines) {
+      doc.setDrawColor(...hexToRgb(ROW_LINE_COLOR)); doc.setLineWidth(ROW_LINE_PT * PT_TO_MM);
+      for (let i = 1; i < 5; i++) doc.line(left, top + i * cell, left + settings.gridSize, top + i * cell);
+    }
+    if (!isAnimals) { doc.setFont('Sheet Digits UD', 'bold'); doc.setFontSize(settings.fontSize); }
     digits.forEach((digit, i) => {
       if (isAnimals) {
         const asset = animalImages[digit];
@@ -137,6 +147,7 @@ export function makePdf(jsPDF, settings, sheets, animalImages = {}) {
           top + (Math.floor(i / 5) + .5) * cell - height / 2, width, height, digit, 'FAST');
         return;
       }
+      doc.setTextColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / 5))));
       doc.text(String(digit), left + (i % 5 + .5) * cell, top + (Math.floor(i / 5) + .5) * cell + sizeMm * FONT_CENTER, { align: 'center' });
     });
   });
