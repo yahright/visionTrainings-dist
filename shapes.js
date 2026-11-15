@@ -1,6 +1,7 @@
-// "shape touch" worksheet: outline shapes in a 5 x 10 grid on A4 landscape,
+// "shape touch" worksheet: outline shapes in an adjustable grid on A4 landscape,
 // with the touch order shown below a double rule.
 import { rowColor, hexToRgb } from './rows.js';
+import { gridDimensions } from './grid.js';
 export const SHAPES = [
   { id: 'triangle', label: '三角' },
   { id: 'circle', label: '丸' },
@@ -40,11 +41,13 @@ export function shapeOutline(id, cx, cy, size) {
   return { points: points.map(([x, y]) => [cx + x, cy + y]) };
 }
 
-export function shapeLayout() {
-  const left = PAGE_W / 2 - (SHAPE_COLS - 1) / 2 * PITCH_X;
-  const cells = Array.from({ length: SHAPE_ROWS * SHAPE_COLS }, (_, i) => [left + (i % SHAPE_COLS) * PITCH_X, FIRST_ROW + Math.floor(i / SHAPE_COLS) * PITCH_Y]);
+export function shapeLayout(settings = {}) {
+  const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
+  const left = PAGE_W / 2 - (cols - 1) / 2 * PITCH_X;
+  const top = FIRST_ROW + (SHAPE_ROWS - rows) / 2 * PITCH_Y;
+  const cells = Array.from({ length: rows * cols }, (_, i) => [left + (i % cols) * PITCH_X, top + Math.floor(i / cols) * PITCH_Y]);
   const keyLeft = (count) => PAGE_W / 2 - (count - 1) / 2 * KEY_PITCH;
-  return { cells, keyLeft, KEY_Y, KEY_PITCH, TITLE_Y, RULE_Y, RULE_GAP, RULE_LEFT, PAGE_W, PAGE_H };
+  return { rows, cols, cells, keyLeft, KEY_Y, KEY_PITCH, TITLE_Y, RULE_Y, RULE_GAP, RULE_LEFT, PAGE_W, PAGE_H };
 }
 
 export function shapeIcon(id) {
@@ -62,18 +65,18 @@ function escapeXml(text) {
 }
 
 export function shapePreviewSvg(settings, sheet) {
-  const L = shapeLayout();
+  const L = shapeLayout(settings);
   let content = `<rect width="${L.PAGE_W}" height="${L.PAGE_H}" fill="white"/>`;
   if (settings.title) content += `<text x="${L.PAGE_W / 2}" y="${L.TITLE_Y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${12 * 25.4 / 72}" fill="black">${escapeXml(settings.title)}</text>`;
   sheet.cells.forEach((id, i) => {
-    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), SHAPE_STROKE, rowColor(settings.rowColor, Math.floor(i / SHAPE_COLS)))}</g>`;
+    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), SHAPE_STROKE, rowColor(settings.rowColor, Math.floor(i / L.cols)))}</g>`;
   });
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
   sheet.order.forEach((id, i) => {
     content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize), SHAPE_STROKE)}</g>`;
   });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.PAGE_W} ${L.PAGE_H}" role="img" aria-label="図形タッチのA4横シート">${content}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.PAGE_W} ${L.PAGE_H}" role="img" aria-label="図形タッチ${L.rows}行×${L.cols}列のA4横シート">${content}</svg>`;
 }
 
 function drawOutline(doc, outline) {
@@ -86,8 +89,8 @@ function drawOutline(doc, outline) {
 
 export function makeShapePdf(jsPDF, settings, sheets) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });
-  const L = shapeLayout();
-  doc.setProperties({ title: `${settings.title || 'shape touch'} - A4 landscape 5x10` });
+  const L = shapeLayout(settings);
+  doc.setProperties({ title: `${settings.title || 'shape touch'} - A4 landscape ${L.rows}x${L.cols}` });
   sheets.forEach((sheet, page) => {
     if (page) doc.addPage('a4', 'landscape');
     doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE); doc.setLineJoin('miter');
@@ -96,7 +99,7 @@ export function makeShapePdf(jsPDF, settings, sheets) {
       doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
     }
     sheet.cells.forEach((id, i) => {
-      doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / SHAPE_COLS))));
+      doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols))));
       drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
     });
     doc.setDrawColor(0);

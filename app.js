@@ -1,9 +1,18 @@
 import { validate, createSheets, previewSvg, makePdf, loadPreviewFont } from './core.js';
 import { ANIMALS, animalUrl, loadAnimalImages } from './animals.js';
 import { SHAPES, shapeIcon } from './shapes.js';
+import { gridDimensions } from './grid.js';
 const $ = id => document.getElementById(id);
 let generated = null, page = 0;
 const fontReady = loadPreviewFont().then(() => true, () => false);
+const dimensionsByMode = { digits: { rows: 5, cols: 5 }, animals: { rows: 5, cols: 5 }, shapes: { rows: 5, cols: 10 } };
+function showGridCount() {
+  const rows = Number($('grid-rows').value), cols = Number($('grid-cols').value);
+  dimensionsByMode[$('sheet-mode').value] = { rows, cols };
+  $('grid-count').textContent = Number.isInteger(rows) && rows >= 1 && rows <= 5 && Number.isInteger(cols) && cols >= 1 && cols <= Number($('grid-cols').max)
+    ? `${rows}行×${cols}列＝${rows * cols}個` : '行数・列数を範囲内の整数で指定してください。';
+}
+for (const id of ['grid-rows', 'grid-cols']) $(id).addEventListener('input', showGridCount);
 $('animal-choices').innerHTML = ANIMALS.map((animal, i) => `<label class="animal-choice"><input type="checkbox" name="animal" value="${animal.id}" ${i < 3 ? 'checked' : ''}><img src="${animalUrl(animal.id)}" alt="" width="64" height="64"><span>${animal.label}</span></label>`).join('');
 $('shape-choices').innerHTML = SHAPES.map((shape, i) => `<label class="animal-choice"><input type="checkbox" name="shape" value="${shape.id}" ${i < 3 ? 'checked' : ''}>${shapeIcon(shape.id)}<span>${shape.label}</span></label>`).join('');
 function selectedShapes() { return [...document.querySelectorAll('input[name="shape"]:checked')].map(input => input.value); }
@@ -13,6 +22,10 @@ function selectedAnimals() { return [...document.querySelectorAll('input[name="a
 function showSelection() { $('animal-selection').textContent = `${$('animal-count').value}種類を選択：現在${selectedAnimals().length}種類`; }
 function syncMode() {
   const mode = $('sheet-mode').value, animals = mode === 'animals', shapes = mode === 'shapes';
+  $('grid-rows').value = dimensionsByMode[mode].rows;
+  $('grid-cols').max = shapes ? 10 : 5;
+  $('grid-cols').value = dimensionsByMode[mode].cols;
+  showGridCount();
   $('animal-options').hidden = !animals;
   $('animal-options').disabled = !animals;
   $('shape-options').hidden = !shapes;
@@ -37,8 +50,9 @@ $('animal-count').addEventListener('change', () => {
 $('animal-choices').addEventListener('change', showSelection);
 syncMode();
 function readSettings() {
-  if ($('sheet-mode').value === 'shapes') return { mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
-  const common = { mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
+  const dimensions = { rows: Number($('grid-rows').value), cols: Number($('grid-cols').value) };
+  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
+  const common = { ...dimensions, mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
   return common.mode === 'animals'
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
     : { ...common, fontSize: Number($('font-size').value), rowColor: $('row-color').value, rowLines: $('row-lines').checked };
@@ -46,12 +60,13 @@ function readSettings() {
 function render() {
   $('preview').innerHTML = previewSvg(generated.settings, generated.sheets[page]);
   const settings = generated.settings;
+  const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
   $('preview').classList.toggle('landscape', settings.mode === 'shapes');
   const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
-  if (settings.mode === 'shapes') $('summary').textContent = `図形${settings.shapes.length}種類・${settings.shapeSize}mm / 5×10${colorLabel}`;
+  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm${colorLabel}`;
   else {
   const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
-  $('summary').textContent = `${settings.gridSize}mm角 / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
+  $('summary').textContent = `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
   }
   document.querySelector('.pagination').hidden = generated.sheets.length === 1;
   $('page-label').textContent = `${page + 1} / ${generated.sheets.length} ページ`;

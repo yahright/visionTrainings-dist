@@ -14,13 +14,20 @@
   <script type="module" src="./app.js"></script>
 </head>
 <body>
-  <header><span class="brand-icon" aria-hidden="true">25</span><h1>数字・動物・図形シート</h1><span class="format">A4</span></header>
+  <header><span class="brand-icon" aria-hidden="true">A4</span><h1>数字・動物・図形シート</h1><span class="format">A4</span></header>
   <main>
     <section class="settings" aria-labelledby="settings-title">
       <h2 id="settings-title">シートをつくる</h2>
-      <p class="intro">数字や動物をランダムに25個。図形タッチも作れます。</p>
+      <p class="intro">行数・列数を選んで数字や動物を配置。図形タッチも作れます。</p>
       <form id="settings-form">
         <div class="field full-width"><label for="sheet-mode">配置するもの</label><select id="sheet-mode"><option value="digits">数字</option><option value="animals">動物のシルエット</option><option value="shapes">図形タッチ（A4横）</option></select></div>
+        <div class="full-width">
+          <div class="animal-settings-row">
+            <div class="field"><label for="grid-rows">縦の行数</label><div class="input-unit"><input id="grid-rows" type="number" min="1" max="5" step="1" value="5" required inputmode="numeric"><span>行</span></div></div>
+            <div class="field"><label for="grid-cols">横の列数</label><div class="input-unit"><input id="grid-cols" type="number" min="1" max="5" step="1" value="5" required inputmode="numeric"><span>列</span></div></div>
+          </div>
+          <small id="grid-count" aria-live="polite">5行×5列＝25個</small>
+        </div>
         <fieldset id="animal-options" class="full-width" hidden disabled>
           <legend class="sr-only">動物の設定</legend>
           <div class="animal-settings-row">
@@ -39,10 +46,10 @@
           </div>
           <div id="shape-choices" class="animal-choices" role="group" aria-label="使う図形"></div>
           <p id="shape-selection" class="selection-note" aria-live="polite"></p>
-          <small>5行×10列に選んだ図形をほぼ同じ数ずつ並べます。<br>二重線の下に、タッチする順番の見本を出します。</small>
+          <small>指定した行数・列数に図形をほぼ同じ数ずつ並べます。<br>二重線の下に、タッチする順番の見本を出します。</small>
         </fieldset>
         <div class="field" id="font-field"><label for="font-size">文字サイズ</label><div class="input-unit"><input id="font-size" type="number" min="24" max="124" step="1" value="100" required inputmode="numeric"><span>pt</span></div></div>
-        <div class="field" id="grid-field"><label for="grid-size">グリッドの一辺</label><div class="input-unit"><input id="grid-size" type="number" min="100" max="190" step="1" value="180" required inputmode="numeric"><span>mm</span></div><small>縦横は同じ長さ。100〜190mm</small></div>
+        <div class="field" id="grid-field"><label for="grid-size">グリッドの長い辺</label><div class="input-unit"><input id="grid-size" type="number" min="100" max="190" step="1" value="180" required inputmode="numeric"><span>mm</span></div><small>100〜190mm。マスは正方形です</small></div>
         <div class="field"><label for="page-count">枚数</label><div class="input-unit"><input id="page-count" type="number" min="1" max="100" step="1" value="1" required inputmode="numeric"><span>枚</span></div><small>1〜100枚。ページごとに異なる並び</small></div>
         <label class="checkbox" id="lines-field"><input id="grid-lines" type="checkbox"><span>グリッド線を表示する</span></label>
         <div class="field full-width" id="row-color-field"><label for="row-color">行の色</label><select id="row-color"><option value="none">なし（黒）</option><option value="zebra">ゼブラ（黒・青を交互）</option><option value="rows">行ごとに別の色</option></select><small>行を目で追いやすくします</small></div>
