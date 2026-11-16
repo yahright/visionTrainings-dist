@@ -9,8 +9,9 @@ export const SHAPES = [
   { id: 'diamond', label: 'ひし形' },
   { id: 'star', label: '星' },
 ];
-export const SHAPE_ROWS = 5, SHAPE_COLS = 10;
-const PAGE_W = 297, PAGE_H = 210, PITCH_X = 27, PITCH_Y = 27, FIRST_ROW = 32;
+const PAGE_W = 297, PAGE_H = 210;
+// Grid area (mm): 270 wide, 135 tall, top edge at 18.5. The 5x10 default gives the original 27mm pitch.
+const AREA_W = 270, AREA_H = 135, AREA_TOP = 18.5, KEY_MAX_SIZE = 23;
 const TITLE_Y = 15, RULE_Y = 168, RULE_GAP = 2, RULE_LEFT = 19, KEY_Y = 185, KEY_PITCH = 29;
 export const SHAPE_STROKE = 0.3, SHAPE_STROKE_MIN = 0.2, SHAPE_STROKE_MAX = 1;
 export const shapeStroke = (settings = {}) => settings.shapeStroke ?? SHAPE_STROKE;
@@ -42,13 +43,22 @@ export function shapeOutline(id, cx, cy, size) {
   return { points: points.map(([x, y]) => [cx + x, cy + y]) };
 }
 
+// Fewer rows/columns leave room, so the cell pitch grows to fill the grid area.
+export function shapePitch(settings = {}) {
+  const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
+  return Math.min(AREA_W / cols, AREA_H / rows);
+}
+// Largest shape size (mm) that keeps neighbouring shapes apart: 23mm at the 27mm pitch.
+export const shapeMaxSize = (settings = {}) => Math.floor(shapePitch(settings) / 1.16);
+
 export function shapeLayout(settings = {}) {
   const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
-  const left = PAGE_W / 2 - (cols - 1) / 2 * PITCH_X;
-  const top = FIRST_ROW + (SHAPE_ROWS - rows) / 2 * PITCH_Y;
-  const cells = Array.from({ length: rows * cols }, (_, i) => [left + (i % cols) * PITCH_X, top + Math.floor(i / cols) * PITCH_Y]);
+  const pitch = shapePitch(settings);
+  const left = PAGE_W / 2 - (cols - 1) / 2 * pitch;
+  const top = AREA_TOP + (AREA_H - rows * pitch) / 2 + pitch / 2;
+  const cells = Array.from({ length: rows * cols }, (_, i) => [left + (i % cols) * pitch, top + Math.floor(i / cols) * pitch]);
   const keyLeft = (count) => PAGE_W / 2 - (count - 1) / 2 * KEY_PITCH;
-  return { rows, cols, cells, keyLeft, KEY_Y, KEY_PITCH, TITLE_Y, RULE_Y, RULE_GAP, RULE_LEFT, PAGE_W, PAGE_H };
+  return { rows, cols, pitch, cells, keyLeft, KEY_Y, KEY_PITCH, TITLE_Y, RULE_Y, RULE_GAP, RULE_LEFT, PAGE_W, PAGE_H };
 }
 
 export function shapeIcon(id) {
@@ -75,7 +85,7 @@ export function shapePreviewSvg(settings, sheet) {
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
   sheet.order.forEach((id, i) => {
-    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize), shapeStroke(settings))}</g>`;
+    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, Math.min(settings.shapeSize, KEY_MAX_SIZE)), shapeStroke(settings))}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.PAGE_W} ${L.PAGE_H}" role="img" aria-label="図形タッチ${L.rows}行×${L.cols}列のA4横シート">${content}</svg>`;
 }
@@ -107,7 +117,7 @@ export function makeShapePdf(jsPDF, settings, sheets) {
     for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
     const keyLeft = L.keyLeft(sheet.order.length);
     doc.setLineWidth(shapeStroke(settings));
-    sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, settings.shapeSize)));
+    sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, Math.min(settings.shapeSize, KEY_MAX_SIZE))));
   });
   return doc;
 }

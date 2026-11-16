@@ -1,14 +1,22 @@
 import { validate, createSheets, previewSvg, makePdf, loadPreviewFont } from './core.js';
 import { ANIMALS, animalUrl, loadAnimalImages } from './animals.js';
-import { SHAPES, shapeIcon } from './shapes.js';
+import { SHAPES, shapeIcon, shapeMaxSize } from './shapes.js';
 import { gridDimensions } from './grid.js';
 const $ = id => document.getElementById(id);
 let generated = null, page = 0;
 const fontReady = loadPreviewFont().then(() => true, () => false);
 const dimensionsByMode = { digits: { rows: 5, cols: 5 }, animals: { rows: 5, cols: 5 }, shapes: { rows: 5, cols: 10 } };
+function showShapeSizeRange(rows, cols) {
+  if ($('sheet-mode').value !== 'shapes' || !(rows >= 1 && rows <= 5 && cols >= 1 && cols <= 10)) return;
+  const max = shapeMaxSize({ mode: 'shapes', rows, cols });
+  $('shape-size').max = max;
+  if (Number($('shape-size').value) > max) $('shape-size').value = max;
+  $('shape-size-range').textContent = `12〜${max}mm（行・列が少ないほど大きくできます）`;
+}
 function showGridCount() {
   const rows = Number($('grid-rows').value), cols = Number($('grid-cols').value);
   dimensionsByMode[$('sheet-mode').value] = { rows, cols };
+  showShapeSizeRange(rows, cols);
   $('grid-count').textContent = Number.isInteger(rows) && rows >= 1 && rows <= 5 && Number.isInteger(cols) && cols >= 1 && cols <= Number($('grid-cols').max)
     ? `${rows}行×${cols}列＝${rows * cols}個` : '行数・列数を範囲内の整数で指定してください。';
 }
