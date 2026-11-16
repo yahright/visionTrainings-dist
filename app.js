@@ -8,10 +8,11 @@ const fontReady = loadPreviewFont().then(() => true, () => false);
 const dimensionsByMode = { digits: { rows: 5, cols: 5 }, animals: { rows: 5, cols: 5 }, shapes: { rows: 5, cols: 10 } };
 function showShapeSizeRange(rows, cols) {
   if ($('sheet-mode').value !== 'shapes' || !(rows >= 1 && rows <= 5 && cols >= 1 && cols <= 10)) return;
-  const max = shapeMaxSize({ mode: 'shapes', rows, cols });
+  const stroke = Number($('shape-stroke').value);
+  const max = shapeMaxSize({ mode: 'shapes', rows, cols, shapeStroke: stroke >= 0.2 && stroke <= 3 ? stroke : undefined });
   $('shape-size').max = max;
   if (Number($('shape-size').value) > max) $('shape-size').value = max;
-  $('shape-size-range').textContent = `12〜${max}mm（行・列が少ないほど大きくできます）`;
+  $('shape-size-range').textContent = `12〜${max}mm（行・列が少なく線が細いほど大きくできます）`;
 }
 function showGridCount() {
   const rows = Number($('grid-rows').value), cols = Number($('grid-cols').value);
@@ -20,7 +21,7 @@ function showGridCount() {
   $('grid-count').textContent = Number.isInteger(rows) && rows >= 1 && rows <= 5 && Number.isInteger(cols) && cols >= 1 && cols <= Number($('grid-cols').max)
     ? `${rows}行×${cols}列＝${rows * cols}個` : '行数・列数を範囲内の整数で指定してください。';
 }
-for (const id of ['grid-rows', 'grid-cols']) $(id).addEventListener('input', showGridCount);
+for (const id of ['grid-rows', 'grid-cols', 'shape-stroke']) $(id).addEventListener('input', showGridCount);
 $('animal-choices').innerHTML = ANIMALS.map((animal, i) => `<label class="animal-choice"><input type="checkbox" name="animal" value="${animal.id}" ${i < 3 ? 'checked' : ''}><img src="${animalUrl(animal.id)}" alt="" width="64" height="64"><span>${animal.label}</span></label>`).join('');
 $('shape-choices').innerHTML = SHAPES.map((shape, i) => `<label class="animal-choice"><input type="checkbox" name="shape" value="${shape.id}" ${i < 3 ? 'checked' : ''}>${shapeIcon(shape.id)}<span>${shape.label}</span></label>`).join('');
 function selectedShapes() { return [...document.querySelectorAll('input[name="shape"]:checked')].map(input => input.value); }

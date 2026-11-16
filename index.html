@@ -45,7 +45,7 @@
             <div class="field"><label for="shape-title">タイトル</label><input id="shape-title" type="text" maxlength="40" value="shape touch" autocomplete="off" spellcheck="false"></div>
           </div>
           <div class="animal-settings-row">
-            <div class="field"><label for="shape-stroke">線の太さ</label><div class="input-unit"><input id="shape-stroke" type="number" min="0.2" max="1" step="0.1" value="0.3" required inputmode="decimal"><span>mm</span></div><small>0.2〜1mm（初期値0.3mm）</small></div>
+            <div class="field"><label for="shape-stroke">線の太さ</label><div class="input-unit"><input id="shape-stroke" type="number" min="0.2" max="3" step="0.1" value="0.3" required inputmode="decimal"><span>mm</span></div><small>0.2〜3mm（初期値0.3mm）。太いほど図形の最大サイズは小さくなります</small></div>
           </div>
           <div id="shape-choices" class="animal-choices" role="group" aria-label="使う図形"></div>
           <p id="shape-selection" class="selection-note" aria-live="polite"></p>
@@ -60,7 +60,7 @@
         <p id="form-error" class="error" role="alert"></p>
         <button class="primary" id="generate" type="submit">生成</button>
       </form>
-      <p class="hint">生成するたびに並びが変わります。<br>同じ数字・動物が複数回出ます。</p>
+      <p class="hint">生成するたびに並びが変わります。<br>数字は0〜9、動物は選んだ種類がすべて入ります。<br>（数字は10マス未満なら全部違う数字）</p>
     </section>
     <section class="result" aria-label="生成したシート">
       <div class="result-bar"><h2>プレビュー</h2><span id="summary">未生成</span></div>

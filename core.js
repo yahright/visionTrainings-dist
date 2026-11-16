@@ -21,8 +21,8 @@ export function validate(settings) {
   if (mode === 'shapes') {
     if (!Array.isArray(settings.shapes) || settings.shapes.length < 2 || settings.shapes.length > SHAPES.length || new Set(settings.shapes).size !== settings.shapes.length || settings.shapes.some(id => !SHAPES.some(shape => shape.id === id))) throw new Error('図形を2種類以上選んでください。');
     if (total < settings.shapes.length) throw new Error('選んだ図形がすべて入るように、行数・列数を増やすか図形の種類を減らしてください。');
-    if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > shapeMaxSize(settings)) throw new Error(`図形の大きさは12〜${shapeMaxSize(settings)}mmで指定してください（行・列が少ないほど大きくできます）。`);
     if (settings.shapeStroke !== undefined && !(Number.isFinite(settings.shapeStroke) && settings.shapeStroke >= SHAPE_STROKE_MIN && settings.shapeStroke <= SHAPE_STROKE_MAX)) throw new Error(`線の太さは${SHAPE_STROKE_MIN}〜${SHAPE_STROKE_MAX}mmで指定してください。`);
+    if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > shapeMaxSize(settings)) throw new Error(`図形の大きさは12〜${shapeMaxSize(settings)}mmで指定してください（行・列が少ないほど大きくできます）。`);
     if (typeof settings.title !== 'string' || settings.title.length > 40 || !/^[\x20-\x7e]*$/.test(settings.title)) throw new Error('タイトルは半角英数字40文字以内で入力してください。');
     validateSheetCount(settings, total, pages);
     return;
@@ -48,6 +48,19 @@ function factorial(n) {
   return result;
 }
 
+// Digits: every digit 0-9 appears at least once when there are 10+ cells; with fewer
+// cells all digits are different, so as many digits as possible appear.
+export function digitSheetCount(total) {
+  if (total < 10) return factorial(10) / factorial(10 - total);
+  // Surjections of `total` cells onto 10 digits (inclusion-exclusion).
+  let sum = 0n;
+  for (let j = 0; j <= 10; j++) {
+    const term = factorial(10) / (factorial(j) * factorial(10 - j)) * BigInt(10 - j) ** BigInt(total);
+    sum += j % 2 ? -term : term;
+  }
+  return sum;
+}
+
 // Small grids can have fewer distinct sheets than the requested page count.
 // Count them exactly so duplicate rejection cannot run forever.
 function validateSheetCount(settings, total, count) {
@@ -65,7 +78,7 @@ function validateSheetCount(settings, total, count) {
     const arrangements = factorial(total) / (factorial(base + 1) ** BigInt(extra) * factorial(base) ** BigInt(k - extra));
     const choices = factorial(k) / (factorial(extra) * factorial(k - extra));
     possibilities = arrangements * choices * factorial(k);
-  } else possibilities = 10n ** BigInt(total);
+  } else possibilities = digitSheetCount(total);
   if (BigInt(count) > possibilities) throw new Error(`この行数・列数では異なる並びは最大${possibilities}枚です。枚数を減らすか、行数・列数を増やしてください。`);
 }
 
@@ -108,11 +121,12 @@ export function createSheets(count, settings = {}) {
       if (!seen.has(key)) { seen.add(key); sheets.push(sheet); }
       continue;
     }
-    // Ensure every chosen animal occurs at least once, then randomize positions.
+    // Ensure every chosen animal / digit occurs at least once, then randomize positions.
+    // With fewer cells than digits, take distinct digits so the most digits appear.
     const pool = isAnimals ? settings.animals : Array.from({ length: 10 }, (_, i) => i);
-    const items = isAnimals ? [...pool] : [];
+    const items = isAnimals ? [...pool] : shuffle([...pool]).slice(0, total);
     while (items.length < total) items.push(pool[randomIndex(pool.length)]);
-    if (isAnimals) shuffle(items);
+    shuffle(items);
     const key = items.join(',');
     if (!seen.has(key)) { seen.add(key); sheets.push(items); }
   }

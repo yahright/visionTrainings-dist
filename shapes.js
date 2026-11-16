@@ -13,7 +13,7 @@ const PAGE_W = 297, PAGE_H = 210;
 // Grid area (mm): 270 wide, 135 tall, top edge at 18.5. The 5x10 default gives the original 27mm pitch.
 const AREA_W = 270, AREA_H = 135, AREA_TOP = 18.5, KEY_MAX_SIZE = 23;
 const TITLE_Y = 15, RULE_Y = 168, RULE_GAP = 2, RULE_LEFT = 19, KEY_Y = 185, KEY_PITCH = 29;
-export const SHAPE_STROKE = 0.3, SHAPE_STROKE_MIN = 0.2, SHAPE_STROKE_MAX = 1;
+export const SHAPE_STROKE = 0.3, SHAPE_STROKE_MIN = 0.2, SHAPE_STROKE_MAX = 3;
 export const shapeStroke = (settings = {}) => settings.shapeStroke ?? SHAPE_STROKE;
 
 // Outline of a shape whose nominal size is `size` mm, centered at (cx, cy).
@@ -49,7 +49,10 @@ export function shapePitch(settings = {}) {
   return Math.min(AREA_W / cols, AREA_H / rows);
 }
 // Largest shape size (mm) that keeps neighbouring shapes apart: 23mm at the 27mm pitch.
-export const shapeMaxSize = (settings = {}) => Math.floor(shapePitch(settings) / 1.16);
+// The stroke is centred on the outline, so it eats stroke/2 of the gap on each side.
+export const shapeMaxSize = (settings = {}) => Math.floor((shapePitch(settings) - shapeStroke(settings)) / 1.16);
+// Key shapes sit 29mm apart, up to 23mm, and shrink when the stroke gets thick.
+const keySize = (settings) => Math.min(settings.shapeSize, KEY_MAX_SIZE, Math.floor((29 - shapeStroke(settings)) / 1.16));
 
 export function shapeLayout(settings = {}) {
   const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
@@ -85,7 +88,7 @@ export function shapePreviewSvg(settings, sheet) {
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
   sheet.order.forEach((id, i) => {
-    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, Math.min(settings.shapeSize, KEY_MAX_SIZE)), shapeStroke(settings))}</g>`;
+    content += `<g data-key="${id}">${outlineSvg(shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, keySize(settings)), shapeStroke(settings))}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${L.PAGE_W} ${L.PAGE_H}" role="img" aria-label="図形タッチ${L.rows}行×${L.cols}列のA4横シート">${content}</svg>`;
 }
@@ -117,7 +120,7 @@ export function makeShapePdf(jsPDF, settings, sheets) {
     for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
     const keyLeft = L.keyLeft(sheet.order.length);
     doc.setLineWidth(shapeStroke(settings));
-    sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, Math.min(settings.shapeSize, KEY_MAX_SIZE))));
+    sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, keySize(settings))));
   });
   return doc;
 }
