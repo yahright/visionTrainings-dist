@@ -16,7 +16,7 @@ export function validate(settings) {
   const { fontSize, gridSize, pages, mode = 'digits' } = settings;
   if (!['digits', 'animals', 'shapes'].includes(mode)) throw new Error('数字・動物・図形のどれかを選んでください。');
   if (!Number.isInteger(pages) || pages < 1 || pages > 100) throw new Error('枚数は1〜100枚で指定してください。');
-  validateRowColor(settings.rowColor);
+  validateRowColor(settings.rowColor, settings.rowColors);
   const total = validateGrid(settings);
   if (mode === 'shapes') {
     if (!Array.isArray(settings.shapes) || settings.shapes.length < 2 || settings.shapes.length > SHAPES.length || new Set(settings.shapes).size !== settings.shapes.length || settings.shapes.some(id => !SHAPES.some(shape => shape.id === id))) throw new Error('図形を2種類以上選んでください。');
@@ -166,7 +166,7 @@ export function previewSvg(settings, digits) {
     }
     const x = left + (i % cols + .5) * cell;
     const y = top + (Math.floor(i / cols) + .5) * cell + sizeMm * FONT_CENTER;
-    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Sheet Digits UD" font-weight="700" font-size="${sizeMm}" fill="${rowColor(settings.rowColor, Math.floor(i / cols))}">${digit}</text>`;
+    content += `<text x="${x}" y="${y}" text-anchor="middle" font-family="Sheet Digits UD" font-weight="700" font-size="${sizeMm}" fill="${rowColor(settings.rowColor, Math.floor(i / cols), settings.rowColors)}">${digit}</text>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="${settings.mode === 'animals' ? '動物' : '数字'}${rows * cols}個、${rows}行×${cols}列のA4シート">${content}</svg>`;
 }
@@ -202,7 +202,7 @@ function drawGridPage(doc, settings, digits, animalImages) {
         top + (Math.floor(i / cols) + .5) * cell - height / 2, width, height, digit, 'FAST');
       return;
     }
-    doc.setTextColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / cols))));
+    doc.setTextColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / cols), settings.rowColors)));
     doc.text(String(digit), left + (i % cols + .5) * cell, top + (Math.floor(i / cols) + .5) * cell + sizeMm * FONT_CENTER, { align: 'center' });
   });
 }

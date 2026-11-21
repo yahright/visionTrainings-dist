@@ -100,7 +100,7 @@ export function shapePreviewSvg(settings, sheet) {
   let content = `<rect width="${L.PAGE_W}" height="${L.PAGE_H}" fill="white"/>`;
   if (settings.title) content += `<text x="${L.PAGE_W / 2}" y="${L.TITLE_Y}" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="${12 * 25.4 / 72}" fill="black">${escapeXml(settings.title)}</text>`;
   sheet.cells.forEach((id, i) => {
-    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), shapeStroke(settings), rowColor(settings.rowColor, Math.floor(i / L.cols)))}</g>`;
+    content += `<g data-shape="${id}">${outlineSvg(shapeOutline(id, ...L.cells[i], settings.shapeSize), shapeStroke(settings), rowColor(settings.rowColor, Math.floor(i / L.cols), settings.rowColors))}</g>`;
   });
   for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) content += `<path d="M ${L.RULE_LEFT} ${y} H ${L.PAGE_W - L.RULE_LEFT}" stroke="black" stroke-width="${SHAPE_STROKE}"/>`;
   const keyLeft = L.keyLeft(sheet.order.length);
@@ -127,7 +127,7 @@ export function drawShapePage(doc, settings, sheet) {
     doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
   }
   sheet.cells.forEach((id, i) => {
-    doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols))));
+    doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols), settings.rowColors)));
     drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
   });
   doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE);

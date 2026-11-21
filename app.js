@@ -3,6 +3,7 @@ import { MAX_COPIES, itemPages, trayPages, expandTray, loadTray, saveTray, moveI
 import { ANIMALS, animalUrl, loadAnimalImages } from './animals.js';
 import { SHAPES, shapeIcon, shapeMaxSize } from './shapes.js';
 import { gridDimensions } from './grid.js';
+import { COLORS, DEFAULT_ROW_COLORS, colorLabel as rowColorName } from './rows.js';
 const $ = id => document.getElementById(id);
 let generated = null, page = 0;
 const fontReady = loadPreviewFont().then(() => true, () => false);
@@ -25,6 +26,26 @@ function showGridCount() {
     ? `${rows}行×${cols}列＝${rows * cols}個` : '行数・列数を範囲内の整数で指定してください。';
 }
 for (const id of ['grid-rows', 'grid-cols', 'shape-stroke', 'shape-gap-x', 'shape-gap-y']) $(id).addEventListener('input', showGridCount);
+// Per-row color pickers (one per row) shown when 「行ごとに色を指定」 is chosen.
+const customRowColors = [...DEFAULT_ROW_COLORS];
+const hexOf = id => COLORS.find(c => c.id === id).hex;
+function renderRowColorPickers() {
+  const custom = $('row-color').value === 'custom' && !$('row-color').disabled;
+  $('row-color-custom').hidden = !custom;
+  if (!custom) return;
+  const rows = Math.min(5, Math.max(1, Number($('grid-rows').value) || 1));
+  $('row-color-custom').innerHTML = customRowColors.slice(0, rows).map((id, row) =>
+    `<label class="row-color-pick"><span>${row + 1}行目</span><i class="swatch" style="background:${hexOf(id)}"></i><select data-row="${row}" aria-label="${row + 1}行目の色">${COLORS.map(c => `<option value="${c.id}"${c.id === id ? ' selected' : ''}>${c.label}</option>`).join('')}</select></label>`).join('');
+}
+$('row-color').addEventListener('change', renderRowColorPickers);
+$('grid-rows').addEventListener('input', renderRowColorPickers);
+$('row-color-custom').addEventListener('change', event => {
+  const select = event.target.closest('select[data-row]');
+  if (!select) return;
+  customRowColors[Number(select.dataset.row)] = select.value;
+  select.previousElementSibling.style.background = hexOf(select.value);
+});
+const readRowColors = () => customRowColors.slice(0, Math.min(5, Math.max(1, Number($('grid-rows').value) || 1)));
 for (const id of ['shape-gap-x', 'shape-gap-y']) $(`${id}-auto`).addEventListener('change', () => { $(id).disabled = $(`${id}-auto`).checked; showGridCount(); });
 const readGap = id => $(`${id}-auto`).checked ? 'auto' : Number($(id).value);
 const gapLabel = gap => gap === 'auto' ? '自動' : `${gap}mm`;
@@ -52,7 +73,7 @@ function syncMode() {
   $('row-lines-field').hidden = $('row-lines').disabled = mode !== 'digits';
   $('grid-size').disabled = $('grid-lines').disabled = shapes;
   $('print-note').textContent = `印刷は「A4・${shapes ? '横' : '縦'}・実際のサイズ（100%）」で。`;
-  showSelection(); showShapeSelection();
+  showSelection(); showShapeSelection(); renderRowColorPickers();
 }
 $('sheet-mode').addEventListener('change', syncMode);
 $('animal-count').addEventListener('change', () => {
@@ -64,17 +85,18 @@ $('animal-count').addEventListener('change', () => {
 });
 $('animal-choices').addEventListener('change', showSelection);
 syncMode();
+const readRowColor = () => $('row-color').value === 'custom' ? { rowColor: 'custom', rowColors: readRowColors() } : { rowColor: $('row-color').value };
 function readSettings() {
   const dimensions = { rows: Number($('grid-rows').value), cols: Number($('grid-cols').value) };
-  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), shapeStroke: Number($('shape-stroke').value), shapeGapX: readGap('shape-gap-x'), shapeGapY: readGap('shape-gap-y'), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
+  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), shapeStroke: Number($('shape-stroke').value), shapeGapX: readGap('shape-gap-x'), shapeGapY: readGap('shape-gap-y'), title: $('shape-title').value.trim(), ...readRowColor() };
   const common = { ...dimensions, mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
   return common.mode === 'animals'
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
-    : { ...common, fontSize: Number($('font-size').value), rowColor: $('row-color').value, rowLines: $('row-lines').checked };
+    : { ...common, fontSize: Number($('font-size').value), ...readRowColor(), rowLines: $('row-lines').checked };
 }
 function describe(settings) {
   const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
-  const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
+  const colorLabel = settings.rowColor === 'custom' ? ` / 色 ${settings.rowColors.map(rowColorName).join('・')}` : { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
   if (settings.mode === 'shapes') return `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm・間隔 横${gapLabel(settings.shapeGapX)}/縦${gapLabel(settings.shapeGapY)}${colorLabel}`;
   const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
   return `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
