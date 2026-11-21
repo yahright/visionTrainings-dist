@@ -10,7 +10,7 @@ export const SHAPES = [
   { id: 'star', label: '星' },
 ];
 const PAGE_W = 297, PAGE_H = 210;
-// Grid area (mm): 270 wide, 135 tall, top edge at 18.5. The 5x10 default gives the original 27mm pitch.
+// Grid area (mm): 270 wide, 135 tall, top edge at 18.5. Shapes are laid out compactly with the chosen gaps, centred in it.
 const AREA_W = 270, AREA_H = 135, AREA_TOP = 18.5, KEY_MAX_SIZE = 23;
 const TITLE_Y = 15, RULE_Y = 168, RULE_GAP = 2, RULE_LEFT = 19, KEY_Y = 185, KEY_PITCH = 29;
 export const SHAPE_STROKE = 0.3, SHAPE_STROKE_MIN = 0.2, SHAPE_STROKE_MAX = 3;
@@ -43,23 +43,34 @@ export function shapeOutline(id, cx, cy, size) {
   return { points: points.map(([x, y]) => [cx + x, cy + y]) };
 }
 
-// Fewer rows/columns leave room, so the cell pitch grows to fill the grid area.
+// Gaps (mm) between neighbouring shapes' outlines, measured on the widest shape incl. stroke.
+export const SHAPE_GAP = 3, SHAPE_GAP_MIN = 0, SHAPE_GAP_MAX = 50;
+export const shapeGaps = (settings = {}) => ({ x: settings.shapeGapX ?? SHAPE_GAP, y: settings.shapeGapY ?? SHAPE_GAP });
+// Width/height a shape of `size` can occupy: the widest outline is 1.12x, plus the stroke (centred on the outline).
+const EXTENT = 1.16;
+export const shapeExtent = (settings) => settings.shapeSize * EXTENT + shapeStroke(settings);
+
+// Pitch (centre-to-centre distance) between columns / rows for the given size and gaps.
 export function shapePitch(settings = {}) {
-  const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
-  return Math.min(AREA_W / cols, AREA_H / rows);
+  const gaps = shapeGaps(settings), ext = shapeExtent({ shapeSize: 22, ...settings });
+  return { x: ext + gaps.x, y: ext + gaps.y };
 }
-// Largest shape size (mm) that keeps neighbouring shapes apart: 23mm at the 27mm pitch.
-// The stroke is centred on the outline, so it eats stroke/2 of the gap on each side.
-export const shapeMaxSize = (settings = {}) => Math.floor((shapePitch(settings) - shapeStroke(settings)) / 1.16);
+// Largest shape size (mm) whose rows/columns, with the chosen gaps between them, still fit the grid area.
+export function shapeMaxSize(settings = {}) {
+  const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
+  const gaps = shapeGaps(settings);
+  const ext = Math.min((AREA_W + gaps.x) / cols - gaps.x, (AREA_H + gaps.y) / rows - gaps.y);
+  return Math.floor((ext - shapeStroke(settings)) / EXTENT + 1e-9);
+}
 // Key shapes sit 29mm apart, up to 23mm, and shrink when the stroke gets thick.
 const keySize = (settings) => Math.min(settings.shapeSize, KEY_MAX_SIZE, Math.floor((29 - shapeStroke(settings)) / 1.16));
 
 export function shapeLayout(settings = {}) {
   const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
   const pitch = shapePitch(settings);
-  const left = PAGE_W / 2 - (cols - 1) / 2 * pitch;
-  const top = AREA_TOP + (AREA_H - rows * pitch) / 2 + pitch / 2;
-  const cells = Array.from({ length: rows * cols }, (_, i) => [left + (i % cols) * pitch, top + Math.floor(i / cols) * pitch]);
+  const left = PAGE_W / 2 - (cols - 1) / 2 * pitch.x;
+  const top = AREA_TOP + AREA_H / 2 - (rows - 1) / 2 * pitch.y;
+  const cells = Array.from({ length: rows * cols }, (_, i) => [left + (i % cols) * pitch.x, top + Math.floor(i / cols) * pitch.y]);
   const keyLeft = (count) => PAGE_W / 2 - (count - 1) / 2 * KEY_PITCH;
   return { rows, cols, pitch, cells, keyLeft, KEY_Y, KEY_PITCH, TITLE_Y, RULE_Y, RULE_GAP, RULE_LEFT, PAGE_W, PAGE_H };
 }

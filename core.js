@@ -1,6 +1,6 @@
 import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 import { ANIMALS, animalUrl } from './animals.js';
-import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, shapePreviewSvg, makeShapePdf } from './shapes.js';
+import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, SHAPE_GAP_MIN, SHAPE_GAP_MAX, shapePreviewSvg, makeShapePdf } from './shapes.js';
 import { gridDimensions, validateGrid } from './grid.js';
 import { rowColor, hexToRgb, validateRowColor } from './rows.js';
 export const ROW_LINE_COLOR = '#555555', ROW_LINE_PT = 1;
@@ -22,7 +22,12 @@ export function validate(settings) {
     if (!Array.isArray(settings.shapes) || settings.shapes.length < 2 || settings.shapes.length > SHAPES.length || new Set(settings.shapes).size !== settings.shapes.length || settings.shapes.some(id => !SHAPES.some(shape => shape.id === id))) throw new Error('図形を2種類以上選んでください。');
     if (total < settings.shapes.length) throw new Error('選んだ図形がすべて入るように、行数・列数を増やすか図形の種類を減らしてください。');
     if (settings.shapeStroke !== undefined && !(Number.isFinite(settings.shapeStroke) && settings.shapeStroke >= SHAPE_STROKE_MIN && settings.shapeStroke <= SHAPE_STROKE_MAX)) throw new Error(`線の太さは${SHAPE_STROKE_MIN}〜${SHAPE_STROKE_MAX}mmで指定してください。`);
-    if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > shapeMaxSize(settings)) throw new Error(`図形の大きさは12〜${shapeMaxSize(settings)}mmで指定してください（行・列が少ないほど大きくできます）。`);
+    for (const [key, label] of [['shapeGapX', '横の間隔'], ['shapeGapY', '縦の間隔']]) {
+      if (settings[key] !== undefined && !(Number.isFinite(settings[key]) && settings[key] >= SHAPE_GAP_MIN && settings[key] <= SHAPE_GAP_MAX)) throw new Error(`${label}は${SHAPE_GAP_MIN}〜${SHAPE_GAP_MAX}mmで指定してください。`);
+    }
+    const maxSize = shapeMaxSize(settings);
+    if (maxSize < 12) throw new Error('間隔が広すぎて12mmの図形が入りません。間隔を狭くするか、行数・列数を減らしてください。');
+    if (!Number.isInteger(settings.shapeSize) || settings.shapeSize < 12 || settings.shapeSize > maxSize) throw new Error(`図形の大きさは12〜${maxSize}mmで指定してください（行・列が少なく、間隔が狭いほど大きくできます）。`);
     if (typeof settings.title !== 'string' || settings.title.length > 40 || !/^[\x20-\x7e]*$/.test(settings.title)) throw new Error('タイトルは半角英数字40文字以内で入力してください。');
     validateSheetCount(settings, total, pages);
     return;
