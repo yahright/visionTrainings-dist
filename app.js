@@ -1,4 +1,5 @@
-import { validate, createSheets, previewSvg, makePdf, loadPreviewFont } from './core.js';
+import { validate, createSheets, previewSvg, makePdf, makeCombinedPdf, orientationOf, MAX_COMBINED_PAGES, loadPreviewFont } from './core.js';
+import { MAX_COPIES, itemPages, trayPages, expandTray, loadTray, saveTray, moveItem } from './tray.js';
 import { ANIMALS, animalUrl, loadAnimalImages } from './animals.js';
 import { SHAPES, shapeIcon, shapeMaxSize } from './shapes.js';
 import { gridDimensions } from './grid.js';
@@ -71,17 +72,17 @@ function readSettings() {
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
     : { ...common, fontSize: Number($('font-size').value), rowColor: $('row-color').value, rowLines: $('row-lines').checked };
 }
+function describe(settings) {
+  const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
+  const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
+  if (settings.mode === 'shapes') return `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm・間隔 横${gapLabel(settings.shapeGapX)}/縦${gapLabel(settings.shapeGapY)}${colorLabel}`;
+  const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
+  return `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
+}
 function render() {
   $('preview').innerHTML = previewSvg(generated.settings, generated.sheets[page]);
-  const settings = generated.settings;
-  const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
-  $('preview').classList.toggle('landscape', settings.mode === 'shapes');
-  const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
-  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm・間隔 横${gapLabel(settings.shapeGapX)}/縦${gapLabel(settings.shapeGapY)}${colorLabel}`;
-  else {
-  const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
-  $('summary').textContent = `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;
-  }
+  $('preview').classList.toggle('landscape', generated.settings.mode === 'shapes');
+  $('summary').textContent = describe(generated.settings);
   document.querySelector('.pagination').hidden = generated.sheets.length === 1;
   $('page-label').textContent = `${page + 1} / ${generated.sheets.length} ページ`;
   $('previous').disabled = page === 0;
@@ -98,6 +99,7 @@ $('settings-form').addEventListener('submit', async event => {
     else if (settings.mode === 'digits' && !await fontReady) throw new Error('数字フォントを読み込めませんでした。画面を再読み込みしてください。');
     generated = { settings, sheets: createSheets(settings.pages, settings), animalImages }; page = 0;
     render(); $('form-error').textContent = ''; $('download').disabled = false;
+    $('add-to-tray').disabled = false; $('add-to-tray').textContent = 'まとめに追加';
     $('status').textContent = `${settings.pages}枚を生成しました。この並びで保存できます。`;
   } catch (error) { $('form-error').textContent = error.message; }
   finally { $('generate').disabled = false; $('generate').textContent = '生成'; }
@@ -119,4 +121,93 @@ $('download').addEventListener('click', () => {
     $('status').textContent = 'PDFを保存しました。端末によってはPDF画面から保存してください。';
   } catch (error) { $('status').textContent = `保存できませんでした。${error.message}`; }
 });
+
+// まとめPDF tray
+const MODE_NAMES = { digits: '数字', animals: '動物', shapes: '図形タッチ' };
+const storage = (() => { try { return window.localStorage; } catch { return null; } })();
+let tray = storage ? loadTray(storage, validate) : [];
+function setTray(items, message = '') {
+  tray = items;
+  const saved = storage && saveTray(storage, tray);
+  renderTray();
+  const warning = tray.length && !saved ? '（この端末には保存できませんでした。再読み込みすると消えます）' : '';
+  if (message || warning) $('tray-status').textContent = message + warning;
+}
+function renderTray() {
+  const pages = trayPages(tray);
+  $('tray-count').textContent = `${tray.length}種類・計${pages}ページ`;
+  $('tray-empty').hidden = tray.length > 0;
+  $('tray-actions').hidden = tray.length === 0;
+  $('tray-fab').hidden = tray.length === 0;
+  $('tray-fab-count').textContent = pages;
+  $('tray-download').textContent = `まとめてPDF保存（${pages}ページ）`;
+  $('tray-download').disabled = pages > MAX_COMBINED_PAGES;
+  $('tray-list').innerHTML = tray.map((item, i) => `
+    <li class="tray-item" data-index="${i}">
+      <div class="tray-thumb ${item.settings.mode === 'shapes' ? 'landscape' : ''}">${previewSvg(item.settings, item.sheets[0])}</div>
+      <div class="tray-info">
+        <strong>${i + 1}. ${MODE_NAMES[item.settings.mode]}（A4${item.settings.mode === 'shapes' ? '横' : '縦'}）</strong>
+        <span class="tray-desc">${describe(item.settings)}</span>
+        <div class="tray-copies"><span>${item.sheets.length}枚 ×</span>
+          <button type="button" data-action="less" aria-label="部数を減らす" ${item.copies <= 1 ? 'disabled' : ''}>−</button>
+          <output aria-label="部数">${item.copies}</output>
+          <button type="button" data-action="more" aria-label="部数を増やす" ${item.copies >= MAX_COPIES ? 'disabled' : ''}>＋</button>
+          <span>部</span><span class="tray-total">＝ ${itemPages(item)}ページ</span></div>
+      </div>
+      <div class="tray-controls">
+        <button type="button" data-action="up" aria-label="上へ" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" data-action="down" aria-label="下へ" ${i === tray.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" data-action="remove" aria-label="削除">×</button>
+      </div>
+    </li>`).join('');
+  const orientations = new Set(tray.map(item => orientationOf(item.settings)));
+  $('tray-status').textContent = '';
+  if (pages > MAX_COMBINED_PAGES) $('tray-status').textContent = `合計${MAX_COMBINED_PAGES}ページまでです。部数を減らすか、シートを削除してください。`;
+  else if (orientations.size > 1) $('tray-status').textContent = '縦と横のページが混ざります。印刷時は用紙の向きを「自動」、サイズを「実際のサイズ（100%）」にしてください。';
+}
+$('add-to-tray').addEventListener('click', () => {
+  if (!generated) return;
+  if (trayPages(tray) + generated.sheets.length > MAX_COMBINED_PAGES) { $('status').textContent = `まとめPDFは合計${MAX_COMBINED_PAGES}ページまでです。`; return; }
+  const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  setTray([...tray, { id, settings: generated.settings, sheets: generated.sheets, copies: 1 }]);
+  $('add-to-tray').disabled = true; $('add-to-tray').textContent = '追加済み';
+  $('status').textContent = `まとめPDFに追加しました（計${trayPages(tray)}ページ）。別の設定で生成して、続けて追加できます。`;
+});
+$('tray-list').addEventListener('click', event => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const index = Number(button.closest('.tray-item').dataset.index), item = tray[index];
+  const action = button.dataset.action;
+  if (action === 'up' || action === 'down') setTray(moveItem(tray, index, action === 'up' ? -1 : 1));
+  else if (action === 'remove') setTray(tray.filter((_, i) => i !== index), `${index + 1}. ${MODE_NAMES[item.settings.mode]}を削除しました。`);
+  else {
+    const copies = Math.min(MAX_COPIES, Math.max(1, item.copies + (action === 'more' ? 1 : -1)));
+    setTray(tray.map((it, i) => i === index ? { ...it, copies } : it));
+  }
+  // Keep keyboard focus on the same control after re-rendering.
+  const again = $('tray-list').querySelector(`.tray-item[data-index="${action === 'up' ? index - 1 : action === 'down' ? index + 1 : index}"] button[data-action="${action}"]`);
+  if (again && !again.disabled) again.focus();
+});
+$('tray-clear').addEventListener('click', () => {
+  if (confirm('まとめPDFのシートをすべて削除しますか？')) setTray([], 'すべて削除しました。');
+});
+$('tray-download').addEventListener('click', async () => {
+  if (!tray.length) return;
+  const button = $('tray-download');
+  try {
+    if (!window.jspdf) throw new Error('PDF機能を読み込めませんでした。画面を再読み込みしてください。');
+    button.disabled = true; button.textContent = 'PDF作成中…';
+    const animals = [...new Set(tray.flatMap(item => item.settings.mode === 'animals' ? item.settings.animals : []))];
+    const images = animals.length ? await loadAnimalImages(animals) : {};
+    const pages = trayPages(tray);
+    makeCombinedPdf(window.jspdf.jsPDF, expandTray(tray), images).save(`sheets-a4-${pages}pages.pdf`);
+    renderTray();
+    $('tray-status').textContent = `${pages}ページのPDFを保存しました。端末によってはPDF画面から保存してください。`;
+  } catch (error) { renderTray(); $('tray-status').textContent = `保存できませんでした。${error.message}`; }
+});
+renderTray();
+// The floating "まとめ" button is only a shortcut; hide it while the tray itself is on screen.
+if ('IntersectionObserver' in window) new IntersectionObserver(([entry]) => {
+  document.body.classList.toggle('tray-visible', entry.isIntersecting);
+}).observe($('tray'));
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});

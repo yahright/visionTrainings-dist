@@ -118,26 +118,21 @@ function drawOutline(doc, outline) {
   doc.lines(deltas, first[0], first[1], [1, 1], 'S', true);
 }
 
-export function makeShapePdf(jsPDF, settings, sheets) {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape', compress: true });
+// One shape touch page drawn onto the current (landscape) page of `doc`.
+export function drawShapePage(doc, settings, sheet) {
   const L = shapeLayout(settings);
-  doc.setProperties({ title: `${settings.title || 'shape touch'} - A4 landscape ${L.rows}x${L.cols}` });
-  sheets.forEach((sheet, page) => {
-    if (page) doc.addPage('a4', 'landscape');
-    doc.setDrawColor(0); doc.setLineWidth(shapeStroke(settings)); doc.setLineJoin('miter');
-    if (settings.title) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(0);
-      doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
-    }
-    sheet.cells.forEach((id, i) => {
-      doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols))));
-      drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
-    });
-    doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE);
-    for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
-    const keyLeft = L.keyLeft(sheet.order.length);
-    doc.setLineWidth(shapeStroke(settings));
-    sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, keySize(settings))));
+  doc.setDrawColor(0); doc.setLineWidth(shapeStroke(settings)); doc.setLineJoin('miter');
+  if (settings.title) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(0);
+    doc.text(settings.title, L.PAGE_W / 2, L.TITLE_Y, { align: 'center' });
+  }
+  sheet.cells.forEach((id, i) => {
+    doc.setDrawColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / L.cols))));
+    drawOutline(doc, shapeOutline(id, ...L.cells[i], settings.shapeSize));
   });
-  return doc;
+  doc.setDrawColor(0); doc.setLineWidth(SHAPE_STROKE);
+  for (const y of [L.RULE_Y, L.RULE_Y + L.RULE_GAP]) doc.line(L.RULE_LEFT, y, L.PAGE_W - L.RULE_LEFT, y);
+  const keyLeft = L.keyLeft(sheet.order.length);
+  doc.setLineWidth(shapeStroke(settings));
+  sheet.order.forEach((id, i) => drawOutline(doc, shapeOutline(id, keyLeft + i * L.KEY_PITCH, L.KEY_Y, keySize(settings))));
 }

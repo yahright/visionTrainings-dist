@@ -71,9 +71,17 @@
       <div class="result-bar"><h2>プレビュー</h2><span id="summary">未生成</span></div>
       <div class="paper" id="preview"><div class="empty"><span aria-hidden="true">0 1 2<br>3 4 5</span><p>設定を選んで「生成」を押してください</p></div></div>
       <nav class="pagination" aria-label="ページ切り替え" hidden><button type="button" id="previous" aria-label="前のページ">←</button><span id="page-label"></span><button type="button" id="next" aria-label="次のページ">→</button></nav>
-      <div class="download-bar"><p id="status" role="status" aria-live="polite">生成するとPDFを保存できます。</p><button type="button" id="download" class="primary" disabled>PDFダウンロード</button></div>
+      <div class="download-bar"><p id="status" role="status" aria-live="polite">生成するとPDFを保存できます。</p><div class="download-actions"><button type="button" id="add-to-tray" disabled>まとめに追加</button><button type="button" id="download" class="primary" disabled>PDFダウンロード</button></div></div>
       <p class="print-note" id="print-note">印刷は「A4・縦・実際のサイズ（100%）」で。</p>
+      <section class="tray" id="tray" aria-labelledby="tray-title">
+        <div class="tray-head"><h2 id="tray-title">まとめPDF</h2><span id="tray-count">0ページ</span></div>
+        <p id="tray-empty" class="tray-empty">生成したシートを「まとめに追加」すると、数字・動物・図形タッチを1つのPDFにできます。<br>追加したシートは並びが固定されます。部数を増やすと同じ並びを何部でも出せます。</p>
+        <ol id="tray-list" class="tray-list"></ol>
+        <div class="tray-actions" id="tray-actions" hidden><button type="button" id="tray-clear">すべて削除</button><button type="button" id="tray-download" class="primary">まとめてPDF保存</button></div>
+        <p id="tray-status" class="tray-status" role="status" aria-live="polite"></p>
+      </section>
     </section>
+    <a href="#tray" class="tray-fab" id="tray-fab" hidden>まとめ <span id="tray-fab-count">0</span>ページ</a>
   </main>
   <footer>数字・動物・図形シート <span>作成したシートは外部に送信しません。</span></footer>
 </body>

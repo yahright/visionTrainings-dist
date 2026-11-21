@@ -1,6 +1,6 @@
 import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 import { ANIMALS, animalUrl } from './animals.js';
-import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, SHAPE_GAP_AUTO, SHAPE_GAP_MIN, SHAPE_GAP_MAX, shapePreviewSvg, makeShapePdf } from './shapes.js';
+import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, SHAPE_GAP_AUTO, SHAPE_GAP_MIN, SHAPE_GAP_MAX, shapePreviewSvg, drawShapePage } from './shapes.js';
 import { gridDimensions, validateGrid } from './grid.js';
 import { rowColor, hexToRgb, validateRowColor } from './rows.js';
 export const ROW_LINE_COLOR = '#555555', ROW_LINE_PT = 1;
@@ -171,44 +171,73 @@ export function previewSvg(settings, digits) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="${settings.mode === 'animals' ? '動物' : '数字'}${rows * cols}個、${rows}行×${cols}列のA4シート">${content}</svg>`;
 }
 
-export function makePdf(jsPDF, settings, sheets, animalImages = {}) {
-  if (settings.mode === 'shapes') return makeShapePdf(jsPDF, settings, sheets);
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+const MODE_LABELS = { digits: '数字', animals: '動物', shapes: '図形タッチ' };
+export const orientationOf = settings => settings.mode === 'shapes' ? 'landscape' : 'portrait';
+export const MAX_COMBINED_PAGES = 100;
+
+// One digits/animals page drawn onto the current page of `doc`.
+function drawGridPage(doc, settings, digits, animalImages) {
   const isAnimals = settings.mode === 'animals';
-  if (!isAnimals) {
+  const { rows, cols, width, height, left, top, cell, sizeMm } = layout(settings);
+  if (settings.lines) {
+    doc.setDrawColor(166); doc.setLineWidth(.5 * PT_TO_MM);
+    for (let i = 0; i <= cols; i++) doc.line(left + i * cell, top, left + i * cell, top + height);
+    for (let i = 0; i <= rows; i++) doc.line(left, top + i * cell, left + width, top + i * cell);
+  }
+  if (!isAnimals && settings.rowLines) {
+    doc.setDrawColor(...hexToRgb(ROW_LINE_COLOR)); doc.setLineWidth(ROW_LINE_PT * PT_TO_MM);
+    for (let i = 1; i < rows; i++) doc.line(left, top + i * cell, left + width, top + i * cell);
+  }
+  if (!isAnimals) { doc.setFont('Sheet Digits UD', 'bold'); doc.setFontSize(settings.fontSize); }
+  digits.forEach((digit, i) => {
+    if (isAnimals) {
+      const asset = animalImages[digit];
+      if (!asset) throw new Error('動物の絵が見つかりません。生成し直してください。');
+      const side = cell * settings.animalSize / 100;
+      // Match SVG's aspect-ratio preserving image placement.
+      const ratio = asset.naturalWidth / asset.naturalHeight;
+      const width = ratio >= 1 ? side : side * ratio;
+      const height = ratio >= 1 ? side / ratio : side;
+      doc.addImage(asset, 'PNG', left + (i % cols + .5) * cell - width / 2,
+        top + (Math.floor(i / cols) + .5) * cell - height / 2, width, height, digit, 'FAST');
+      return;
+    }
+    doc.setTextColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / cols))));
+    doc.text(String(digit), left + (i % cols + .5) * cell, top + (Math.floor(i / cols) + .5) * cell + sizeMm * FONT_CENTER, { align: 'center' });
+  });
+}
+
+// Several generated sets ({ settings, sheets }) in one PDF, in order. Portrait and
+// landscape pages can be mixed; each set gets a bookmark.
+export function makeCombinedPdf(jsPDF, items, animalImages = {}, title) {
+  if (!items.length) throw new Error('まとめるシートがありません。');
+  const total = items.reduce((sum, item) => sum + item.sheets.length, 0);
+  if (total > MAX_COMBINED_PAGES) throw new Error(`まとめられるのは合計${MAX_COMBINED_PAGES}ページまでです。`);
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientationOf(items[0].settings), compress: true });
+  if (items.some(item => item.settings.mode === 'digits')) {
     doc.addFileToVFS('SheetDigitsUD-Bold.ttf', FONT_DATA);
     doc.addFont('SheetDigitsUD-Bold.ttf', 'Sheet Digits UD', 'bold');
   }
-  const { rows, cols, width, height, left, top, cell, sizeMm } = layout(settings);
-  doc.setProperties({ title: `Random ${isAnimals ? 'animals' : 'digits'} - A4 ${rows}x${cols} grid` });
-  sheets.forEach((digits, page) => {
-    if (page) doc.addPage();
-    if (settings.lines) {
-      doc.setDrawColor(166); doc.setLineWidth(.5 * PT_TO_MM);
-      for (let i = 0; i <= cols; i++) doc.line(left + i * cell, top, left + i * cell, top + height);
-      for (let i = 0; i <= rows; i++) doc.line(left, top + i * cell, left + width, top + i * cell);
-    }
-    if (!isAnimals && settings.rowLines) {
-      doc.setDrawColor(...hexToRgb(ROW_LINE_COLOR)); doc.setLineWidth(ROW_LINE_PT * PT_TO_MM);
-      for (let i = 1; i < rows; i++) doc.line(left, top + i * cell, left + width, top + i * cell);
-    }
-    if (!isAnimals) { doc.setFont('Sheet Digits UD', 'bold'); doc.setFontSize(settings.fontSize); }
-    digits.forEach((digit, i) => {
-      if (isAnimals) {
-        const asset = animalImages[digit];
-        if (!asset) throw new Error('動物の絵が見つかりません。生成し直してください。');
-        const side = cell * settings.animalSize / 100;
-        // Match SVG's aspect-ratio preserving image placement.
-        const ratio = asset.naturalWidth / asset.naturalHeight;
-        const width = ratio >= 1 ? side : side * ratio;
-        const height = ratio >= 1 ? side / ratio : side;
-        doc.addImage(asset, 'PNG', left + (i % cols + .5) * cell - width / 2,
-          top + (Math.floor(i / cols) + .5) * cell - height / 2, width, height, digit, 'FAST');
-        return;
+  doc.setProperties({ title: title || `Sheets - A4 ${total} pages` });
+  let pageNumber = 0;
+  items.forEach(({ settings, sheets }, index) => {
+    sheets.forEach((sheet, i) => {
+      if (pageNumber++) doc.addPage('a4', orientationOf(settings));
+      if (i === 0 && items.length > 1 && doc.outline) {
+        const { rows, cols } = gridDimensions(settings);
+        doc.outline.add(null, `${index + 1}. ${MODE_LABELS[settings.mode]} ${rows}x${cols} (${sheets.length})`, { pageNumber });
       }
-      doc.setTextColor(...hexToRgb(rowColor(settings.rowColor, Math.floor(i / cols))));
-      doc.text(String(digit), left + (i % cols + .5) * cell, top + (Math.floor(i / cols) + .5) * cell + sizeMm * FONT_CENTER, { align: 'center' });
+      if (settings.mode === 'shapes') drawShapePage(doc, settings, sheet);
+      else drawGridPage(doc, settings, sheet, animalImages);
     });
   });
   return doc;
+}
+
+export function makePdf(jsPDF, settings, sheets, animalImages = {}) {
+  const { rows, cols } = gridDimensions(settings);
+  const title = settings.mode === 'shapes'
+    ? `${settings.title || 'shape touch'} - A4 landscape ${rows}x${cols}`
+    : `Random ${settings.mode === 'animals' ? 'animals' : 'digits'} - A4 ${rows}x${cols} grid`;
+  return makeCombinedPdf(jsPDF, [{ settings, sheets }], animalImages, title);
 }
