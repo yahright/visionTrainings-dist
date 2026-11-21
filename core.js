@@ -1,6 +1,6 @@
 import { FONT_DATA, FONT_CENTER, FONT_EXTENT } from './fonts/digits-font.js';
 import { ANIMALS, animalUrl } from './animals.js';
-import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, SHAPE_GAP_MIN, SHAPE_GAP_MAX, shapePreviewSvg, makeShapePdf } from './shapes.js';
+import { SHAPES, shapeMaxSize, SHAPE_STROKE_MIN, SHAPE_STROKE_MAX, SHAPE_GAP_AUTO, SHAPE_GAP_MIN, SHAPE_GAP_MAX, shapePreviewSvg, makeShapePdf } from './shapes.js';
 import { gridDimensions, validateGrid } from './grid.js';
 import { rowColor, hexToRgb, validateRowColor } from './rows.js';
 export const ROW_LINE_COLOR = '#555555', ROW_LINE_PT = 1;
@@ -23,7 +23,7 @@ export function validate(settings) {
     if (total < settings.shapes.length) throw new Error('選んだ図形がすべて入るように、行数・列数を増やすか図形の種類を減らしてください。');
     if (settings.shapeStroke !== undefined && !(Number.isFinite(settings.shapeStroke) && settings.shapeStroke >= SHAPE_STROKE_MIN && settings.shapeStroke <= SHAPE_STROKE_MAX)) throw new Error(`線の太さは${SHAPE_STROKE_MIN}〜${SHAPE_STROKE_MAX}mmで指定してください。`);
     for (const [key, label] of [['shapeGapX', '横の間隔'], ['shapeGapY', '縦の間隔']]) {
-      if (settings[key] !== undefined && !(Number.isFinite(settings[key]) && settings[key] >= SHAPE_GAP_MIN && settings[key] <= SHAPE_GAP_MAX)) throw new Error(`${label}は${SHAPE_GAP_MIN}〜${SHAPE_GAP_MAX}mmで指定してください。`);
+      if (settings[key] !== undefined && settings[key] !== SHAPE_GAP_AUTO && !(Number.isFinite(settings[key]) && settings[key] >= SHAPE_GAP_MIN && settings[key] <= SHAPE_GAP_MAX)) throw new Error(`${label}は${SHAPE_GAP_MIN}〜${SHAPE_GAP_MAX}mmか「自動」で指定してください。`);
     }
     const maxSize = shapeMaxSize(settings);
     if (maxSize < 12) throw new Error('間隔が広すぎて12mmの図形が入りません。間隔を狭くするか、行数・列数を減らしてください。');

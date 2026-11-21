@@ -44,22 +44,28 @@ export function shapeOutline(id, cx, cy, size) {
 }
 
 // Gaps (mm) between neighbouring shapes' outlines, measured on the widest shape incl. stroke.
-export const SHAPE_GAP = 3, SHAPE_GAP_MIN = 0, SHAPE_GAP_MAX = 50;
-export const shapeGaps = (settings = {}) => ({ x: settings.shapeGapX ?? SHAPE_GAP, y: settings.shapeGapY ?? SHAPE_GAP });
+// 'auto' (the default) spreads that axis over the whole grid area instead.
+export const SHAPE_GAP_AUTO = 'auto', SHAPE_GAP_MIN = 0, SHAPE_GAP_MAX = 50;
+export const shapeGaps = (settings = {}) => ({ x: settings.shapeGapX ?? SHAPE_GAP_AUTO, y: settings.shapeGapY ?? SHAPE_GAP_AUTO });
 // Width/height a shape of `size` can occupy: the widest outline is 1.12x, plus the stroke (centred on the outline).
 const EXTENT = 1.16;
 export const shapeExtent = (settings) => settings.shapeSize * EXTENT + shapeStroke(settings);
 
 // Pitch (centre-to-centre distance) between columns / rows for the given size and gaps.
 export function shapePitch(settings = {}) {
+  const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
   const gaps = shapeGaps(settings), ext = shapeExtent({ shapeSize: 22, ...settings });
-  return { x: ext + gaps.x, y: ext + gaps.y };
+  return {
+    x: gaps.x === SHAPE_GAP_AUTO ? AREA_W / cols : ext + gaps.x,
+    y: gaps.y === SHAPE_GAP_AUTO ? AREA_H / rows : ext + gaps.y,
+  };
 }
 // Largest shape size (mm) whose rows/columns, with the chosen gaps between them, still fit the grid area.
 export function shapeMaxSize(settings = {}) {
   const { rows, cols } = gridDimensions({ ...settings, mode: 'shapes' });
   const gaps = shapeGaps(settings);
-  const ext = Math.min((AREA_W + gaps.x) / cols - gaps.x, (AREA_H + gaps.y) / rows - gaps.y);
+  const fit = (area, n, gap) => gap === SHAPE_GAP_AUTO ? area / n : (area + gap) / n - gap;
+  const ext = Math.min(fit(AREA_W, cols, gaps.x), fit(AREA_H, rows, gaps.y));
   return Math.floor((ext - shapeStroke(settings)) / EXTENT + 1e-9);
 }
 // Key shapes sit 29mm apart, up to 23mm, and shrink when the stroke gets thick.

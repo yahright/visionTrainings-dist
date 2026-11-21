@@ -9,7 +9,7 @@ const dimensionsByMode = { digits: { rows: 5, cols: 5 }, animals: { rows: 5, col
 function showShapeSizeRange(rows, cols) {
   if ($('sheet-mode').value !== 'shapes' || !(rows >= 1 && rows <= 5 && cols >= 1 && cols <= 10)) return;
   const stroke = Number($('shape-stroke').value);
-  const gap = id => { const v = Number($(id).value); return v >= 0 && v <= 50 ? v : undefined; };
+  const gap = id => { if ($(`${id}-auto`).checked) return 'auto'; const v = Number($(id).value); return v >= 0 && v <= 50 ? v : undefined; };
   const max = shapeMaxSize({ mode: 'shapes', rows, cols, shapeStroke: stroke >= 0.2 && stroke <= 3 ? stroke : undefined, shapeGapX: gap('shape-gap-x'), shapeGapY: gap('shape-gap-y') });
   if (max < 12) { $('shape-size-range').textContent = '間隔が広すぎます。間隔を狭くしてください'; return; }
   $('shape-size').max = max;
@@ -24,6 +24,9 @@ function showGridCount() {
     ? `${rows}行×${cols}列＝${rows * cols}個` : '行数・列数を範囲内の整数で指定してください。';
 }
 for (const id of ['grid-rows', 'grid-cols', 'shape-stroke', 'shape-gap-x', 'shape-gap-y']) $(id).addEventListener('input', showGridCount);
+for (const id of ['shape-gap-x', 'shape-gap-y']) $(`${id}-auto`).addEventListener('change', () => { $(id).disabled = $(`${id}-auto`).checked; showGridCount(); });
+const readGap = id => $(`${id}-auto`).checked ? 'auto' : Number($(id).value);
+const gapLabel = gap => gap === 'auto' ? '自動' : `${gap}mm`;
 $('animal-choices').innerHTML = ANIMALS.map((animal, i) => `<label class="animal-choice"><input type="checkbox" name="animal" value="${animal.id}" ${i < 3 ? 'checked' : ''}><img src="${animalUrl(animal.id)}" alt="" width="64" height="64"><span>${animal.label}</span></label>`).join('');
 $('shape-choices').innerHTML = SHAPES.map((shape, i) => `<label class="animal-choice"><input type="checkbox" name="shape" value="${shape.id}" ${i < 3 ? 'checked' : ''}>${shapeIcon(shape.id)}<span>${shape.label}</span></label>`).join('');
 function selectedShapes() { return [...document.querySelectorAll('input[name="shape"]:checked')].map(input => input.value); }
@@ -62,7 +65,7 @@ $('animal-choices').addEventListener('change', showSelection);
 syncMode();
 function readSettings() {
   const dimensions = { rows: Number($('grid-rows').value), cols: Number($('grid-cols').value) };
-  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), shapeStroke: Number($('shape-stroke').value), shapeGapX: Number($('shape-gap-x').value), shapeGapY: Number($('shape-gap-y').value), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
+  if ($('sheet-mode').value === 'shapes') return { ...dimensions, mode: 'shapes', pages: Number($('page-count').value), shapes: selectedShapes(), shapeSize: Number($('shape-size').value), shapeStroke: Number($('shape-stroke').value), shapeGapX: readGap('shape-gap-x'), shapeGapY: readGap('shape-gap-y'), title: $('shape-title').value.trim(), rowColor: $('row-color').value };
   const common = { ...dimensions, mode: $('sheet-mode').value, gridSize: Number($('grid-size').value), pages: Number($('page-count').value), lines: $('grid-lines').checked };
   return common.mode === 'animals'
     ? { ...common, animalCount: Number($('animal-count').value), animals: selectedAnimals(), animalSize: Number($('animal-size').value) }
@@ -74,7 +77,7 @@ function render() {
   const { rows, cols } = gridDimensions(settings), gridLabel = `${rows}行×${cols}列（${rows * cols}個）`;
   $('preview').classList.toggle('landscape', settings.mode === 'shapes');
   const colorLabel = { zebra: ' / ゼブラ', rows: ' / 行ごとの色' }[settings.rowColor] || '';
-  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm・間隔 横${settings.shapeGapX}/縦${settings.shapeGapY}mm${colorLabel}`;
+  if (settings.mode === 'shapes') $('summary').textContent = `${gridLabel} / 図形${settings.shapes.length}種類・${settings.shapeSize}mm・線${settings.shapeStroke}mm・間隔 横${gapLabel(settings.shapeGapX)}/縦${gapLabel(settings.shapeGapY)}${colorLabel}`;
   else {
   const content = settings.mode === 'animals' ? `動物${settings.animalCount}種類・${settings.animalSize}%` : `${settings.fontSize}pt${colorLabel}${settings.rowLines ? ' / 行線' : ''}`;
   $('summary').textContent = `${gridLabel} / 長辺${settings.gridSize}mm / ${content} / 線${settings.lines ? 'あり' : 'なし'}`;

@@ -6,3 +6,4 @@
 .animal-choice svg{width:54px;height:54px}
 #shape-title{width:100%;min-width:0;padding:11px 13px;border:1px solid #c5cede;border-radius:8px;font:inherit;font-size:16px;color:#18243b;background:white}
 [hidden]{display:none!important}
+.input-unit input:disabled{background:#f3f5fa;color:#9aa5b8}.gap-auto{min-height:32px;margin-top:6px}
